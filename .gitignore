@@ -7,6 +7,11 @@ captures/
 .cxx/
 local.properties
 
+# 签名文件(含私钥, 切勿提交)
+keystore.properties
+*.jks
+*.keystore
+
 # IDE
 .idea/
 *.iml
