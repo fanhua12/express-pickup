@@ -30,7 +30,8 @@ public final class LocalNotifier {
                 : (TextUtils.isEmpty(it.carrier) ? it.station : it.carrier + " · " + it.station);
 
         Notification n = new NotificationCompat.Builder(ctx, App.CH_NEW)
-                .setSmallIcon(R.drawable.ic_launcher)
+                .setSmallIcon(R.drawable.ic_notify)
+                .setColor(0xFF3D7EFF)
                 .setContentTitle("取件码 " + it.code)
                 .setContentText(where + "，点我查看")
                 .setStyle(new NotificationCompat.BigTextStyle()
@@ -49,7 +50,7 @@ public final class LocalNotifier {
 
     public static Notification keepAlive(Context ctx) {
         return new NotificationCompat.Builder(ctx, App.CH_KEEP)
-                .setSmallIcon(R.drawable.ic_launcher)
+                .setSmallIcon(R.drawable.ic_notify)
                 .setContentTitle("取件码助手运行中")
                 .setContentText("正在监听快递短信与通知")
                 .setOngoing(true)

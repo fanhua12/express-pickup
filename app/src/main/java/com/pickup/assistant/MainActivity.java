@@ -34,8 +34,8 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_NOTIFY = 12;
 
     private RecyclerView list;
-    private TextView empty, tabPending, tabDone;
-    private View permCard;
+    private View emptyView, permCard;
+    private TextView emptyTitle, emptySub, tabPending, tabDone, statCount;
     private LinearLayout permContainer;
     private PickupAdapter adapter;
 
@@ -48,9 +48,12 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         list = findViewById(R.id.list);
-        empty = findViewById(R.id.empty);
+        emptyView = findViewById(R.id.empty);
+        emptyTitle = findViewById(R.id.txt_empty_title);
+        emptySub = findViewById(R.id.txt_empty_sub);
         tabPending = findViewById(R.id.tab_pending);
         tabDone = findViewById(R.id.tab_done);
+        statCount = findViewById(R.id.txt_stat_count);
         permCard = findViewById(R.id.perm_card);
         permContainer = findViewById(R.id.perm_container);
 
@@ -81,22 +84,31 @@ public class MainActivity extends AppCompatActivity {
     private void switchTab(int status) {
         currentStatus = status;
         boolean pending = status == PickupItem.STATUS_PENDING;
-        tabPending.setTextColor(ContextCompat.getColor(this,
-                pending ? R.color.primary : R.color.text_sub));
-        tabPending.setTypeface(null, pending ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
-        tabDone.setTextColor(ContextCompat.getColor(this,
-                pending ? R.color.text_sub : R.color.primary));
-        tabDone.setTypeface(null, pending ? android.graphics.Typeface.NORMAL : android.graphics.Typeface.BOLD);
+        applyTab(tabPending, pending);
+        applyTab(tabDone, !pending);
         refresh();
+    }
+
+    private void applyTab(TextView tab, boolean selected) {
+        tab.setBackgroundResource(selected ? R.drawable.bg_tab_selected : R.drawable.bg_tab_normal);
+        tab.setTextColor(ContextCompat.getColor(this,
+                selected ? R.color.primary_dark : R.color.text_sub));
+        tab.setTypeface(null, selected
+                ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
     }
 
     private void refresh() {
         List<PickupItem> items = PickupDb.get(this).list(currentStatus);
         adapter.submit(items);
-        empty.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
-        empty.setText(currentStatus == PickupItem.STATUS_PENDING
-                ? "还没有待取的取件码\n收到快递短信或通知会自动出现在这里"
-                : "还没有已取记录");
+        statCount.setText(String.valueOf(PickupDb.get(this).pendingCount()));
+        emptyView.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
+        if (currentStatus == PickupItem.STATUS_PENDING) {
+            emptyTitle.setText("还没有待取的取件码");
+            emptySub.setText("收到快递短信或通知\n取件码会自动出现在这里");
+        } else {
+            emptyTitle.setText("还没有已取的记录");
+            emptySub.setText("取完件后点「标记已取」\n就会归档到这里");
+        }
     }
 
     private void onToggle(PickupItem it) {
@@ -188,43 +200,60 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setBackgroundResource(R.drawable.bg_perm_row);
+        row.setPadding(dp(12), dp(11), dp(10), dp(11));
         LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        rp.topMargin = dp(10);
+        rp.topMargin = dp(8);
         row.setLayoutParams(rp);
+
+        // 状态圆点: 绿=已开, 橙=待开
+        TextView dot = new TextView(this);
+        dot.setText("●");
+        dot.setTextSize(11f);
+        dot.setTextColor(ContextCompat.getColor(this,
+                granted ? R.color.success : R.color.badge_orange));
+        row.addView(dot);
 
         LinearLayout texts = new LinearLayout(this);
         texts.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(0,
                 ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        tp.leftMargin = dp(9);
         texts.setLayoutParams(tp);
 
         TextView t = new TextView(this);
-        t.setText(granted ? title + "  ✓" : title);
-        t.setTextColor(ContextCompat.getColor(this,
-                granted ? R.color.text_sub : R.color.text_main));
-        t.setTextSize(14f);
+        t.setText(title);
+        t.setTextColor(ContextCompat.getColor(this, R.color.text_main));
+        t.setTextSize(13.5f);
         t.setTypeface(null, android.graphics.Typeface.BOLD);
 
         TextView d = new TextView(this);
         d.setText(desc);
         d.setTextColor(ContextCompat.getColor(this, R.color.text_sub));
-        d.setTextSize(12f);
+        d.setTextSize(11.5f);
 
         texts.addView(t);
         texts.addView(d);
-
-        MaterialButton btn = new MaterialButton(this);
-        btn.setText(granted ? "已开启" : "去开启");
-        btn.setEnabled(!granted);
-        btn.setTextSize(12f);
-        btn.setMinHeight(dp(36));
-        btn.setMinimumHeight(dp(36));
-        btn.setPadding(dp(14), 0, dp(14), 0);
-        btn.setOnClickListener(onClick);
-
         row.addView(texts);
-        row.addView(btn);
+
+        if (granted) {
+            TextView ok = new TextView(this);
+            ok.setText("已开启");
+            ok.setTextColor(ContextCompat.getColor(this, R.color.success));
+            ok.setTextSize(12f);
+            row.addView(ok);
+        } else {
+            MaterialButton btn = new MaterialButton(this);
+            btn.setText("去开启");
+            btn.setTextSize(12f);
+            btn.setMinWidth(0);
+            btn.setMinHeight(dp(32));
+            btn.setMinimumHeight(dp(32));
+            btn.setPadding(dp(14), 0, dp(14), 0);
+            btn.setOnClickListener(onClick);
+            row.addView(btn);
+        }
         permContainer.addView(row);
     }
 

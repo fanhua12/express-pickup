@@ -24,7 +24,7 @@
 
 ## 安装
 
-到 [Releases](../../releases) 下载 `pickup-assistant-v1.0.apk`，传到手机上安装即可（需要允许"安装未知来源应用"）。
+到 [Releases](../../releases) 下载最新版本的 `pickup-assistant-v1.x.apk`，传到手机上安装即可（需要允许"安装未知来源应用"）。
 
 APK 签名证书 SHA-256：
 

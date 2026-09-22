@@ -64,6 +64,7 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.VH> {
 
         View.OnClickListener copy = v -> copyCode(ctx, it.code);
         h.code.setOnClickListener(copy);
+        h.boxCode.setOnClickListener(copy);
         h.copy.setOnClickListener(copy);
         h.toggle.setOnClickListener(v -> action.onToggle(it));
     }
@@ -82,11 +83,13 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.VH> {
     }
 
     static class VH extends RecyclerView.ViewHolder {
+        View boxCode;
         TextView carrier, time, code, source;
         MaterialButton copy, toggle;
 
         VH(@NonNull View v) {
             super(v);
+            boxCode = v.findViewById(R.id.box_code);
             carrier = v.findViewById(R.id.txt_carrier);
             time = v.findViewById(R.id.txt_time);
             code = v.findViewById(R.id.txt_code);

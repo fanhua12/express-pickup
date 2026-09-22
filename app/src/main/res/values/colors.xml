@@ -1,9 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#2E7DFF</color>
-    <color name="primary_dark">#1F63D6</color>
-    <color name="bg">#F4F6FA</color>
-    <color name="text_main">#1F2430</color>
-    <color name="text_sub">#8A92A6</color>
-    <color name="code_bg">#EAF2FF</color>
+    <color name="primary">#3D7EFF</color>
+    <color name="primary_dark">#2559D6</color>
+    <color name="primary_light">#EEF4FF</color>
+
+    <!-- 头部渐变 -->
+    <color name="header_start">#5B93FF</color>
+    <color name="header_end">#2E6BE6</color>
+
+    <color name="bg">#F4F6FB</color>
+    <color name="card">#FFFFFF</color>
+    <color name="divider">#EEF1F6</color>
+
+    <color name="text_main">#1A1D26</color>
+    <color name="text_sub">#8B93A7</color>
+    <color name="text_hint">#AAB2C2</color>
+
+    <color name="code_bg">#EDF3FF</color>
+    <color name="code_text">#2559D6</color>
+
+    <color name="chip_bg">#F2F5FA</color>
+    <color name="badge_orange">#FF8A3D</color>
+    <color name="success">#22C55E</color>
+    <color name="white_20">#33FFFFFF</color>
+    <color name="white_70">#B3FFFFFF</color>
 </resources>

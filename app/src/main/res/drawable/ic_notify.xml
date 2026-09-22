@@ -1,0 +1,12 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFF">
+
+    <!-- 通知栏小图标: 单色包裹箱(系统会自动着色) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,2 L21,6.5 L21,17.5 L12,22 L3,17.5 L3,6.5 Z M12,4.3 L5.3,7.6 L12,10.9 L18.7,7.6 Z M5,9.3 L11,12.2 L11,19.4 L5,16.5 Z M13,19.4 L13,12.2 L19,9.3 L19,16.5 Z" />
+</vector>

@@ -2,9 +2,28 @@
 <resources>
     <style name="Theme.Pickup" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="colorPrimary">@color/primary</item>
-        <item name="colorPrimaryDark">@color/primary_dark</item>
+        <item name="colorPrimaryVariant">@color/primary_dark</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
         <item name="colorAccent">@color/primary</item>
-        <item name="android:statusBarColor">@color/primary</item>
+        <item name="android:statusBarColor">@color/header_start</item>
+        <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowBackground">@color/bg</item>
+        <item name="materialButtonStyle">@style/PickupButton</item>
+    </style>
+
+    <!-- 统一按钮: 圆角、不大写、无字距 -->
+    <style name="PickupButton" parent="Widget.MaterialComponents.Button">
+        <item name="cornerRadius">12dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="PickupButton.Outlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="cornerRadius">12dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="strokeColor">@color/divider</item>
+        <item name="android:textColor">@color/text_sub</item>
     </style>
 </resources>
