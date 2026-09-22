@@ -15,7 +15,7 @@ public final class Ingestor {
 
     public static void handle(Context ctx, String text, String source, String sourceApp) {
         if (text == null || text.isEmpty()) return;
-        ParseResult r = PickupParser.parse(text);
+        ParseResult r = PickupParser.parse(ctx, text);
         if (!r.matched) return;
 
         PickupItem it = new PickupItem();

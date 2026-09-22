@@ -11,7 +11,8 @@ import android.text.TextUtils;
 
 /**
  * 通知监听: 抓取菜鸟/微信/各快递App通知里的取件码
- * 组合 title/text/bigText/subText 多字段扫描, 适配不同ROM落字段差异
+ * 组合 title/text/bigText/subText/textLines 多字段扫描, 适配不同ROM落字段差异
+ * 折叠通知(InboxStyle)正文在 EXTRA_TEXT_LINES, 每行单独解析避免漏抓
  */
 public class NotifyListener extends NotificationListenerService {
 
@@ -31,14 +32,23 @@ public class NotifyListener extends NotificationListenerService {
         String bigText = str(extras.getCharSequence(Notification.EXTRA_BIG_TEXT));
         String subText = str(extras.getCharSequence(Notification.EXTRA_SUB_TEXT));
 
+        String app = appLabel(this, pkg);
+
         StringBuilder pool = new StringBuilder();
         append(pool, title);
         append(pool, text);
         append(pool, bigText);
         append(pool, subText);
-        if (pool.length() == 0) return;
+        if (pool.length() > 0) Ingestor.handle(this, pool.toString(), "notification", app);
 
-        Ingestor.handle(this, pool.toString(), "notification", appLabel(this, pkg));
+        // 折叠通知(InboxStyle): 正文按行存放在 EXTRA_TEXT_LINES, 每行单独解析, 避免多条取件码只抓到一条
+        CharSequence[] lines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES);
+        if (lines != null) {
+            for (CharSequence line : lines) {
+                String s = str(line);
+                if (!TextUtils.isEmpty(s)) Ingestor.handle(this, s, "notification", app);
+            }
+        }
     }
 
     private static String str(CharSequence cs) {

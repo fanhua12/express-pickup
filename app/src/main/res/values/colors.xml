@@ -19,6 +19,18 @@
     <color name="code_bg">#EDF3FF</color>
     <color name="code_text">#2559D6</color>
 
+    <!-- 已取: 转灰一档 -->
+    <color name="code_bg_done">#F0F2F6</color>
+    <color name="code_text_done">#8B93A7</color>
+    <color name="card_done">#FBFCFE</color>
+    <color name="divider_done">#E6E9EF</color>
+
+    <!-- 回收仓: 再暗一档 -->
+    <color name="card_recycle">#E8EAF0</color>
+    <color name="divider_recycle">#D9DDE5</color>
+    <color name="code_bg_recycle">#DDE1E9</color>
+    <color name="code_text_recycle">#A6AEBE</color>
+
     <color name="chip_bg">#F2F5FA</color>
     <color name="badge_orange">#FF8A3D</color>
     <color name="success">#22C55E</color>

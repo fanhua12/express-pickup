@@ -1,10 +1,14 @@
 package com.pickup.assistant.parser;
 
+import android.content.Context;
+
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * 从短信/通知文本中提取: 取件码、快递公司、驿站或快递柜名
+ * 取件码规则来自 RuleStore(可导入导出/开关/调序), 全部规则都不可用时启用内置兜底
  * 全部为本地正则匹配, 不联网
  */
 public final class PickupParser {
@@ -42,18 +46,14 @@ public final class PickupParser {
         {"自提点", null}, {"取件点", null}
     };
 
-    /** 取件码规则, 按优先级排列 */
-    private static final Pattern[] CODE_PATTERNS = {
-        // 1. 带横杠格口码(需取件语境前缀, 避开日期): 取件码5-3-1234 / 凭码6-8-901
+    /** 内置兜底规则: 仅当可用规则为空(全被关闭/文件损坏)时启用, 保证不会抓不到码 */
+    private static final Pattern[] FALLBACK_PATTERNS = {
         Pattern.compile("(?:取件码|取货码|提货码|凭码|取件口令|凭)[是为：:\\s]*([0-9]{1,4}(?:-[0-9]{1,4}){1,3})"),
-        // 2. 明确前缀 + 纯数字(贪婪到非数字边界): 取件码87654321 / 验证码23819
         Pattern.compile("(?:取件码|取货码|提货码|提取码|验证码|凭码|取件口令)[是为：:\\s]*([0-9]{4,12})"),
-        // 3. 明确前缀 + 含字母的码: 取货码：A8B9 / AB-1234
         Pattern.compile("(?:取件码|取货码|提货码|提取码|凭码|取件口令)[是为：:\\s]*"
                 + "((?=[0-9A-Za-z-]*[A-Za-z])[A-Za-z0-9]{2,8}(?:-[A-Za-z0-9]{2,8})?)"),
-        // 4. 凭 + 纯数字(无"码"字): 凭123456 取件
+        Pattern.compile("凭[是为：:\\s]*((?=[0-9A-Za-z-]*[A-Za-z])[A-Za-z0-9]{1,8}(?:-[A-Za-z0-9]{1,8}){0,3})"),
         Pattern.compile("凭([0-9]{4,12})"),
-        // 5. 丰巢/柜/驿站语境附近的 8-12 位数字
         Pattern.compile("([0-9]{8,12})(?=[^0-9]{0,12}(?:丰巢|柜|驿站|取件))")
     };
 
@@ -67,7 +67,7 @@ public final class PickupParser {
     }
 
     /** 解析入口 */
-    public static ParseResult parse(String raw) {
+    public static ParseResult parse(Context ctx, String raw) {
         ParseResult r = ParseResult.empty();
         if (!looksLikeExpress(raw)) return r;
 
@@ -76,7 +76,7 @@ public final class PickupParser {
 
         r.carrier = detect(text, CARRIERS);
         r.station = detectStation(text);
-        r.code = detectCode(text);
+        r.code = detectCode(ctx, text);
         r.matched = !r.code.isEmpty();
         return r;
     }
@@ -109,13 +109,33 @@ public final class PickupParser {
         return "";
     }
 
-    private static String detectCode(String text) {
-        for (Pattern p : CODE_PATTERNS) {
-            Matcher m = p.matcher(text);
-            if (m.find()) {
-                String code = m.group(1).trim();
-                if (isValidCode(code, text)) return code;
+    private static String detectCode(Context ctx, String text) {
+        List<Rule> rules = ctx == null ? null : RuleStore.get(ctx);
+        if (rules != null) {
+            for (Rule rule : rules) {
+                if (!rule.enabled) continue;
+                Pattern p = rule.regex();
+                if (p == null) continue;
+                String code = match(p, text);
+                if (!code.isEmpty()) return code;
             }
+            // 有可用规则时以规则为准; 规则全被关闭或全损坏才启用内置兜底
+            for (Rule rule : rules) {
+                if (rule.enabled && rule.regex() != null) return "";
+            }
+        }
+        for (Pattern p : FALLBACK_PATTERNS) {
+            String code = match(p, text);
+            if (!code.isEmpty()) return code;
+        }
+        return "";
+    }
+
+    private static String match(Pattern p, String text) {
+        Matcher m = p.matcher(text);
+        while (m.find()) {
+            String code = m.group(1) == null ? "" : m.group(1).trim();
+            if (isValidCode(code, text)) return code;
         }
         return "";
     }
@@ -123,7 +143,16 @@ public final class PickupParser {
     /** 排除手机号(11位且1开头)、运单号等误判 */
     private static boolean isValidCode(String code, String text) {
         String digits = code.replace("-", "");
-        if (digits.length() < 4 || digits.length() > 12) return false;
+        boolean hasLetter = false;
+        for (int i = 0; i < code.length(); i++) {
+            if (Character.isLetter(code.charAt(i))) {
+                hasLetter = true;
+                break;
+            }
+        }
+        // 纯数字码至少 4 位; 含字母的格口号可以是 "Q-4-64" 这种短码
+        if (digits.length() < (hasLetter ? 2 : 4)) return false;
+        if (digits.length() > 12) return false;
         // 11 位 1 开头通常是手机号
         if (digits.length() == 11 && digits.startsWith("1")) {
             // 除非明确处于"取件码"之后很近

@@ -3,6 +3,7 @@ package com.pickup.assistant.ui;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,10 +12,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.button.MaterialButton;
 import com.pickup.assistant.R;
+import com.pickup.assistant.db.PickupDb;
 import com.pickup.assistant.model.PickupItem;
 
 import java.text.SimpleDateFormat;
@@ -27,6 +30,7 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.VH> {
 
     public interface OnAction {
         void onToggle(PickupItem item);
+        void onDelete(PickupItem item);
     }
 
     private final List<PickupItem> data = new ArrayList<>();
@@ -59,14 +63,43 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.VH> {
         h.carrier.setText(TextUtils.isEmpty(where) ? "快递" : where);
         h.time.setText(sdf.format(new Date(it.receivedAt)));
         h.code.setText(it.code);
-        h.source.setText("来自: " + (TextUtils.isEmpty(it.sourceApp) ? it.source : it.sourceApp));
-        h.toggle.setText(it.status == PickupItem.STATUS_DONE ? "撤销已取" : "标记已取");
+
+        // 层级推进: 待取最亮(蓝) -> 已取转灰 -> 回收仓整体变暗
+        boolean deleted = it.status == PickupItem.STATUS_DELETED;
+        boolean done = it.status == PickupItem.STATUS_DONE;
+        h.itemView.setBackgroundResource(deleted ? R.drawable.bg_card_recycle
+                : done ? R.drawable.bg_card_done : R.drawable.bg_card);
+        h.boxCode.setBackgroundResource(deleted ? R.drawable.bg_code_recycle
+                : done ? R.drawable.bg_code_done : R.drawable.bg_code);
+        h.code.setTextColor(ContextCompat.getColor(ctx, deleted ? R.color.code_text_recycle
+                : done ? R.color.code_text_done : R.color.code_text));
+        h.codeHint.setTextColor(ContextCompat.getColor(ctx, deleted ? R.color.code_text_recycle
+                : done ? R.color.code_text_done : R.color.primary));
+        h.copy.setBackgroundTintList(ColorStateList.valueOf(
+                ContextCompat.getColor(ctx, deleted ? R.color.text_hint
+                        : done ? R.color.text_sub : R.color.primary)));
+        h.carrier.setTextColor(ContextCompat.getColor(ctx, deleted
+                ? R.color.text_sub : R.color.text_main));
+
+        String src = "来自: " + (TextUtils.isEmpty(it.sourceApp) ? it.source : it.sourceApp);
+        if (it.status == PickupItem.STATUS_DELETED) {
+            long left = it.deletedAt + PickupDb.RETENTION_MS - System.currentTimeMillis();
+            long hours = left <= 0 ? 0 : (left + 3599999) / 3600000;
+            src += hours > 0 ? " · 约" + hours + "小时后彻底删除" : " · 即将彻底删除";
+            h.toggle.setText("恢复");
+            h.del.setVisibility(View.GONE);
+        } else {
+            h.toggle.setText(it.status == PickupItem.STATUS_DONE ? "撤销已取" : "标记已取");
+            h.del.setVisibility(it.status == PickupItem.STATUS_DONE ? View.VISIBLE : View.GONE);
+        }
+        h.source.setText(src);
 
         View.OnClickListener copy = v -> copyCode(ctx, it.code);
         h.code.setOnClickListener(copy);
         h.boxCode.setOnClickListener(copy);
         h.copy.setOnClickListener(copy);
         h.toggle.setOnClickListener(v -> action.onToggle(it));
+        h.del.setOnClickListener(v -> action.onDelete(it));
     }
 
     @Override
@@ -84,8 +117,8 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.VH> {
 
     static class VH extends RecyclerView.ViewHolder {
         View boxCode;
-        TextView carrier, time, code, source;
-        MaterialButton copy, toggle;
+        TextView carrier, time, code, codeHint, source;
+        MaterialButton copy, toggle, del;
 
         VH(@NonNull View v) {
             super(v);
@@ -93,9 +126,11 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.VH> {
             carrier = v.findViewById(R.id.txt_carrier);
             time = v.findViewById(R.id.txt_time);
             code = v.findViewById(R.id.txt_code);
+            codeHint = v.findViewById(R.id.txt_code_hint);
             source = v.findViewById(R.id.txt_source);
             copy = v.findViewById(R.id.btn_copy);
             toggle = v.findViewById(R.id.btn_toggle);
+            del = v.findViewById(R.id.btn_del);
         }
     }
 }

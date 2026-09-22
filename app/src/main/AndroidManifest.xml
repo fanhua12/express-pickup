@@ -37,6 +37,12 @@
             </intent-filter>
         </activity>
 
+        <!-- 取件码规则设置 -->
+        <activity
+            android:name=".ui.RulesActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
         <!-- 短信接收器 -->
         <receiver
             android:name=".service.SmsReceiver"
