@@ -15,7 +15,7 @@ import com.pickup.assistant.R;
 import com.pickup.assistant.model.PickupItem;
 import com.pickup.assistant.service.QueryActivity;
 
-/** 本地通知: 新取件码(大字) + 保活常驻。全部本地, 不联网 */
+/** 发本地通知：新取件码一条、保活常驻一条，都不联网 */
 public final class LocalNotifier {
 
     private LocalNotifier() {}
@@ -45,11 +45,11 @@ public final class LocalNotifier {
         try {
             NotificationManagerCompat.from(ctx).notify((int) (it.id % Integer.MAX_VALUE), n);
         } catch (SecurityException ignored) {
-            // Android 13+ 未授予 POST_NOTIFICATIONS 时静默
+            // Android 13+ 没给 POST_NOTIFICATIONS 就静默算了
         }
     }
 
-    /** 到件但无取件码: 高优横幅, 点按/按钮均走"一键查询" */
+    /** 到件但没码，发个高优横幅，点哪都去一键查询 */
     public static void notifyArrival(Context ctx, PickupItem it) {
         Intent query = new Intent(ctx, QueryActivity.class);
         query.putExtra(QueryActivity.EXTRA_PKG, it.sourcePkg);
@@ -81,7 +81,7 @@ public final class LocalNotifier {
         try {
             NotificationManagerCompat.from(ctx).notify(reqCode, n);
         } catch (SecurityException ignored) {
-            // Android 13+ 未授予 POST_NOTIFICATIONS 时静默
+            // 同上，Android 13+ 没授权就静默
         }
     }
 

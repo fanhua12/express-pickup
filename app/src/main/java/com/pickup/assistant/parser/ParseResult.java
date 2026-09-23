@@ -3,7 +3,6 @@ package com.pickup.assistant.parser;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 解析结果: 取件码 + 快递公司 + 驿站/柜名 */
 public class ParseResult {
     public boolean matched;
     public String code = "";

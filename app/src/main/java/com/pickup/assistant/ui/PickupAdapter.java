@@ -66,14 +66,14 @@ public class PickupAdapter extends RecyclerView.Adapter<PickupAdapter.VH> {
         h.code.setText(it.code);
 
         boolean arrival = it.status == PickupItem.STATUS_ARRIVAL;
-        // 层级推进: 待取最亮(蓝) -> 已取转灰 -> 回收仓整体变暗
+        // 颜色分层：待取最亮，已取转灰，回收仓再暗一档
         boolean deleted = it.status == PickupItem.STATUS_DELETED;
         boolean done = it.status == PickupItem.STATUS_DONE;
         h.itemView.setBackgroundResource(deleted ? R.drawable.bg_card_recycle
                 : done ? R.drawable.bg_card_done : R.drawable.bg_card);
 
         if (arrival) {
-            // 到件待查: 隐藏取件码盒, 显示一键查询
+            // 到件待查的没有码盒，换成一键查询按钮
             h.boxCode.setVisibility(View.GONE);
             h.copy.setVisibility(View.GONE);
             h.boxArrival.setVisibility(View.VISIBLE);

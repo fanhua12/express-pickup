@@ -13,8 +13,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * 截图 OCR: ML Kit 离线中文模型(随 APK 打包), 识别全程不联网
- * 把截图里所有文字按行拼成文本, 交给 Ingestor 走与短信/通知同一套解析
+ * 截图 OCR，用的是 ML Kit 离线中文模型（跟着 APK 一起打包），识别不联网
+ * 识别出的文字按行拼起来，丢给 Ingestor，跟短信/通知共用一套解析
  */
 public final class OcrManager {
 
@@ -39,7 +39,7 @@ public final class OcrManager {
         return recognizer;
     }
 
-    /** 批量识别: 顺序处理多张截图, 单张失败跳过, 最终把文字合并成一段 */
+    /** 多张截图一张张来，哪张失败就跳过，最后把文字拼成一段 */
     public static void recognizeAll(final Context ctx, final java.util.List<Uri> uris, final Callback cb) {
         IO.execute(() -> {
             StringBuilder all = new StringBuilder();

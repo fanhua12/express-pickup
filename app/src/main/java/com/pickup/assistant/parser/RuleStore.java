@@ -16,15 +16,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 取件码规则仓库: 首次启动把内置规则(assets/rules.json)落到应用私有目录, 之后以本地文件为准
- * 规则顺序即匹配优先级; 支持导入导出, 全部本地读写, 不联网
+ * 规则仓库。第一次启动把 assets 里的内置规则拷到私有目录，之后都以本地文件为准
+ * 规则顺序就是匹配优先级；导入导出都是本地读写，不联网
  */
 public final class RuleStore {
 
     private static final String TAG = "RuleStore";
     private static final String FILE = "rules.json";
     private static final String ASSET = "rules.json";
-    /** 与 assets/rules.json 的 version 保持一致; 升版后内置规则的正则会刷新, 新增的追加到末尾 */
+    /** 跟 assets/rules.json 里的 version 对上；一升版，同名规则的正则会刷新，新增的追加到末尾 */
     private static final int VERSION = 3;
 
     private static List<Rule> cache;
@@ -37,12 +37,11 @@ public final class RuleStore {
     }
 
     public static synchronized void save(Context ctx, List<Rule> rules) {
-        // 存副本: 调用方后续 clear()/remove() 不能影响缓存
+        // 存个副本，不然调用方后面 clear()/remove() 会连缓存一起改掉
         cache = new ArrayList<>(rules);
         write(ctx, toJson(cache));
     }
 
-    /** 恢复为内置规则 */
     public static synchronized void resetToBuiltin(Context ctx) {
         try {
             write(ctx, readAsset(ctx));
@@ -56,7 +55,7 @@ public final class RuleStore {
         return toJson(get(ctx));
     }
 
-    /** 导入规则: 全部校验通过才写入, 有一条非法则整体拒绝并报出规则名 */
+    /** 导入时全都要校验过才写，有一条非法就整份退回，并把规则名报出来 */
     public static synchronized int importJson(Context ctx, String json) {
         List<Rule> rules;
         try {
@@ -116,7 +115,7 @@ public final class RuleStore {
             return rules;
         }
 
-        // 内置规则集升版: 同名规则刷新正则(保留用户的开关与排序), 新增规则追加到末尾
+        // 内置规则升版了：同名的只换正则，用户自己的开关和排序留着；新增的挂到末尾
         if (assetJson != null && versionOf(assetJson) > versionOf(fileJson)) {
             for (Rule b : parseQuietly(assetJson)) {
                 Rule exist = findByName(rules, b.name);

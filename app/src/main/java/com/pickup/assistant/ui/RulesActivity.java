@@ -30,7 +30,7 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 取件码规则: 开关 / 调优先级 / 删除 / 导入导出 / 恢复内置 / 试跑 */
+/** 规则管理页，能开关、调顺序、删除、导入导出，还能拿段文本试跑 */
 public class RulesActivity extends AppCompatActivity {
 
     private static final int REQ_IMPORT = 31;

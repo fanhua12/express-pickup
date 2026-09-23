@@ -10,9 +10,9 @@ import android.service.notification.StatusBarNotification;
 import android.text.TextUtils;
 
 /**
- * 通知监听: 抓取菜鸟/微信/各快递App通知里的取件码
- * 组合 title/text/bigText/subText/textLines 多字段扫描, 适配不同ROM落字段差异
- * 折叠通知(InboxStyle)正文在 EXTRA_TEXT_LINES, 每行单独解析避免漏抓
+ * 盯着通知栏，从菜鸟/微信/各快递 App 的通知里抠取件码
+ * 各家 ROM 把文字放的字段不一样，所以 title/text/bigText/subText 都扫一遍
+ * 折叠通知（InboxStyle）的正文在 EXTRA_TEXT_LINES，得逐行解析，不然会漏
  */
 public class NotifyListener extends NotificationListenerService {
 
@@ -20,7 +20,7 @@ public class NotifyListener extends NotificationListenerService {
     public void onNotificationPosted(StatusBarNotification sbn) {
         if (sbn == null || sbn.getNotification() == null) return;
         String pkg = sbn.getPackageName();
-        // 跳过本应用通知, 避免循环
+        // 自己发的通知别再抓，会循环
         if (getPackageName().equals(pkg)) return;
 
         Notification n = sbn.getNotification();
@@ -41,7 +41,7 @@ public class NotifyListener extends NotificationListenerService {
         append(pool, subText);
         if (pool.length() > 0) Ingestor.handle(this, pool.toString(), "notification", app, pkg);
 
-        // 折叠通知(InboxStyle): 正文按行存放在 EXTRA_TEXT_LINES, 每行单独解析, 避免多条取件码只抓到一条
+        // 折叠通知的正文一行行存在 EXTRA_TEXT_LINES 里，逐行解析，不然好几个码只抓到一个
         CharSequence[] lines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES);
         if (lines != null) {
             for (CharSequence line : lines) {

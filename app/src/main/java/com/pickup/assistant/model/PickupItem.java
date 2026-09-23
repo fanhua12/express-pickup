@@ -1,6 +1,5 @@
 package com.pickup.assistant.model;
 
-/** 一条取件记录 */
 public class PickupItem {
     public long id;
     public String code;

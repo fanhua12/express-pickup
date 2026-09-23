@@ -5,7 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 
-/** 开机/应用更新后拉起保活服务 */
+/** 开机和应用更新完，把保活服务再拉起来 */
 public class BootReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {

@@ -8,7 +8,7 @@ import android.widget.Toast;
 import com.pickup.assistant.util.ExpressApps;
 
 /**
- * 通知"一键查询"跳板: 无界面, 负责拉起来源快递 App
+ * 通知里"一键查询"的中转页，没有界面，拉起来源 App 就退
  */
 public class QueryActivity extends Activity {
 

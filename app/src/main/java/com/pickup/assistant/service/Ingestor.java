@@ -10,17 +10,15 @@ import com.pickup.assistant.parser.PickupParser;
 
 import java.util.List;
 
-/** 统一处理短信/通知/截图文本: 解析取件码; 无码但到件则建"到件待查" */
+/** 短信、通知、截图都走这里：能解析出码就入库，没码但看着像到件就建条"到件待查" */
 public final class Ingestor {
 
-    /** 处理结果, 供界面给用户反馈 */
     public static final int NONE = 0;          // 既没取件码也不像到件
     public static final int NEW_CODE = 1;      // 识别到新取件码, 已入库+提醒
     public static final int DUP_CODE = 2;      // 取件码已存在
     public static final int NEW_ARRIVAL = 3;   // 到件待查(新)
     public static final int DUP_ARRIVAL = 4;   // 到件待查(重复)
 
-    /** 批量处理结果 */
     public static class BatchResult {
         public int newCount;
         public int dupCount;
@@ -54,14 +52,14 @@ public final class Ingestor {
             boolean isNew = PickupDb.get(ctx).insertIfAbsent(it);
             if (isNew) {
                 LocalNotifier.notifyNew(ctx, it);
-                // 真实取件码到手, 撤掉对应的"到件待查"
+                // 真码到手了，顺手把之前那条"到件待查"撤掉
                 PickupDb.get(ctx).removeMatchedArrivals(r.carrier, r.station);
                 return NEW_CODE;
             }
             return DUP_CODE;
         }
 
-        // 无取件码但明确是"快递到了": 建待查记录并高优提醒一键查询
+        // 没码但明确是"到了"，先建条待查，再高优提醒去一键查询
         if (PickupParser.looksLikeArrival(text)) {
             PickupItem it = new PickupItem();
             it.code = "";
@@ -83,7 +81,7 @@ public final class Ingestor {
         return NONE;
     }
 
-    /** 批量处理(截图多码): 返回新/重复计数 */
+    /** 截图里可能一堆码，批量过一遍，返回新增和重复的条数 */
     public static BatchResult handleBatch(Context ctx, String text, String source, String sourceApp) {
         BatchResult br = new BatchResult();
         br.newCodes = new java.util.ArrayList<>();
@@ -112,7 +110,7 @@ public final class Ingestor {
             }
         }
 
-        // 没找到任何码, 但像到件通知 -> 建到件待查
+        // 一个码都没找到，不过像是到件通知，那就建条待查
         if (results.isEmpty() && PickupParser.looksLikeArrival(text)) {
             ParseResult r = PickupParser.parse(ctx, text);
             PickupItem it = new PickupItem();

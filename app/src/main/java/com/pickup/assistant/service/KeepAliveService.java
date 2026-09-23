@@ -8,7 +8,7 @@ import android.os.IBinder;
 
 import com.pickup.assistant.notify.LocalNotifier;
 
-/** 常驻前台服务: 降低被系统杀掉的概率, 保证短信/通知监听持续 */
+/** 常驻前台服务，让系统别那么容易杀掉，短信和通知才能一直监听 */
 public class KeepAliveService extends Service {
 
     private static final int NOTI_ID = 1001;

@@ -57,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean pendingAutostart = false;
     private AlertDialog ocrProgress;
 
-    /** 选截图: 走系统相册/文件选择器, 不需要存储权限, 支持一次多选 */
+    /** 选截图走系统相册，不用存储权限，还能一次多选 */
     private final ActivityResultLauncher<String> pickImage =
             registerForActivityResult(new ActivityResultContracts.GetMultipleContents(), uris -> {
                 if (uris != null && !uris.isEmpty()) runOcr(uris);
@@ -99,7 +99,7 @@ public class MainActivity extends AppCompatActivity {
         });
         list.setAdapter(adapter);
 
-        // 数据库有变化(如前台收到新取件码)时实时刷新列表
+        // 库里一有变化就刷列表，比如前台收到新取件码
         dbListener = () -> runOnUiThread(this::refresh);
         PickupDb.get(this).addListener(dbListener);
 
@@ -115,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_ocr).setOnClickListener(v ->
                 pickImage.launch("image/*"));
 
-        // 权限卡展开时按返回先收起, 不直接退出应用
+        // 权限卡开着时按返回先收起，别一下就退出去了
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -142,7 +142,7 @@ public class MainActivity extends AppCompatActivity {
         handleSharedImage(intent);
     }
 
-    /** 从相册/其他 App "分享到取件码助手"的截图, 支持单张和多张 */
+    /** 别处"分享到取件码助手"过来的截图，单张多张都收 */
     private void handleSharedImage(Intent intent) {
         if (intent == null) return;
         String action = intent.getAction();
@@ -179,7 +179,7 @@ public class MainActivity extends AppCompatActivity {
         }));
     }
 
-    /** OCR 文本复用短信/通知同一套解析入库, 按结果给提示 */
+    /** OCR 出来的文字照样走短信/通知那套解析入库，再看结果给提示 */
     private void applyOcrText(String text) {
         Ingestor.BatchResult br = Ingestor.handleBatch(this, text, "screenshot", "截图识别");
         String msg;
@@ -242,7 +242,7 @@ public class MainActivity extends AppCompatActivity {
         return prefs().getBoolean(KEY_AUTOSTART, false);
     }
 
-    /** 从系统设置页返回后, 让用户确认一次(系统不提供读取自启动白名单的接口) */
+    /** 系统没接口读自启动白名单，只能从设置页回来时问用户一次 */
     private void askAutostart() {
         new AlertDialog.Builder(this)
                 .setTitle("自启动管理")
@@ -336,7 +336,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /** 一键查询: 拉起来源 App, 取件码在对方 App 内查看 */
+    /** 一键查询其实只是把来源 App 拉起来，码还得进对方 App 里看 */
     private void onQuery(PickupItem it) {
         boolean ok = ExpressApps.launch(this, it.sourcePkg, it.carrier);
         if (!ok) {
@@ -406,7 +406,7 @@ public class MainActivity extends AppCompatActivity {
                     try { startActivity(Permissions.batteryWhitelist(this)); }
                     catch (Exception e) { startActivity(Permissions.appDetail(this)); }
                 });
-        // 自启动无标准API可读, 跳转厂商设置页后由用户回来确认一次, 状态记在本地
+        // 自启动各家 ROM 都不一样，没有标准 API，跳过去让用户回来确认一次，状态记本地
         addPermRow("⑤ 自启动管理", "在厂商设置里允许本应用自启动、后台运行",
                 autostartConfirmed(), v -> {
                     pendingAutostart = true;
@@ -420,7 +420,7 @@ public class MainActivity extends AppCompatActivity {
                 && Permissions.isIgnoringBattery(this)
                 && autostartConfirmed();
 
-        // 全开时卡片不再隐藏, 换成绿色完成态标题并收起列表; 点设置按钮仍可展开管理
+        // 全开时卡片不藏，只换成绿色完成态并收起列表；点设置还能再展开管理
         boolean done = allCoreGranted && !forceShowPerm;
         if (done) {
             permTitle.setText("● 已开启全部权限，实时监听中");
@@ -445,7 +445,6 @@ public class MainActivity extends AppCompatActivity {
         rp.topMargin = dp(8);
         row.setLayoutParams(rp);
 
-        // 状态圆点: 绿=已开, 橙=待开
         TextView dot = new TextView(this);
         dot.setText("●");
         dot.setTextSize(11f);
@@ -492,7 +491,7 @@ public class MainActivity extends AppCompatActivity {
             btn.setOnClickListener(onClick);
             row.addView(btn);
         }
-        // 整行可点: 已开启的权限也能随时跳到系统页管理
+        // 整行都可点，已开的权限也能随时跳去系统页改
         row.setOnClickListener(onClick);
         permContainer.addView(row);
     }

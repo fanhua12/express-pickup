@@ -15,7 +15,7 @@ import androidx.core.content.ContextCompat;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 权限状态检测与设置页跳转(短信/通知/通知监听/电池白名单/厂商自启动) */
+/** 查权限状态、往系统设置页跳，短信/通知/监听/电池白名单/自启动都在这 */
 public final class Permissions {
 
     private Permissions() {}
@@ -32,7 +32,7 @@ public final class Permissions {
         return nm != null && nm.areNotificationsEnabled();
     }
 
-    /** 通知使用权限(监听通知)是否已授予本应用 */
+    /** 通知使用权有没有给到本应用 */
     public static boolean hasListener(Context ctx) {
         String flat = Settings.Secure.getString(
                 ctx.getContentResolver(), "enabled_notification_listeners");
@@ -54,14 +54,13 @@ public final class Permissions {
         return new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
     }
 
-    /** 加入电池优化白名单 */
     public static Intent batteryWhitelist(Context ctx) {
         Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
         i.setData(Uri.parse("package:" + ctx.getPackageName()));
         return i;
     }
 
-    /** 厂商自启动管理页, 找不到则回退应用详情页 */
+    /** 各家厂商的自启动页，挨个试，都不行就回退到应用详情页 */
     public static Intent autoStart(Context ctx) {
         List<ComponentName> candidates = new ArrayList<>();
         // 小米/红米

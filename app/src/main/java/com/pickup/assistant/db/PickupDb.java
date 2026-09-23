@@ -12,19 +12,18 @@ import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 
-/** 本地 SQLite: 数据只存手机, 不上传 */
+/** 本地 SQLite，数据只躺在手机上，不上传 */
 public class PickupDb extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "pickups.db";
     private static final int DB_VERSION = 3;
     private static final String T = "pickups";
 
-    /** 回收仓保留时长 */
     public static final long RETENTION_MS = 24 * 60 * 60 * 1000L;
 
     private static volatile PickupDb instance;
 
-    /** 数据变更监听: 界面实时刷新 */
+    /** 数据一变就回调，界面靠它实时刷新 */
     public interface Listener {
         void onDataChanged();
     }
@@ -76,25 +75,25 @@ public class PickupDb extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldV, int newV) {
-        // v2: 新增回收仓, 保留老数据只加列
+        // v2 加了回收仓，老数据不能丢，只加列
         if (oldV < 2) {
             db.execSQL("ALTER TABLE " + T + " ADD COLUMN deleted_at INTEGER DEFAULT 0");
         }
-        // v3: 来源 App 包名(一键查询拉起)
+        // v3 记下来源包名，一键查询要用
         if (oldV < 3) {
             db.execSQL("ALTER TABLE " + T + " ADD COLUMN source_pkg TEXT");
         }
     }
 
-    /** 同一取件码在该窗口内视为同一条记录: 合并补全信息, 不重复提醒 */
+    /** 这个窗口内同一个码算同一条，合并补全就行，别重复提醒 */
     private static final long MERGE_WINDOW_MS = 3 * 24 * 60 * 60 * 1000L;
 
-    /** 不存在则插入; 返回 true 表示需要提醒的新记录 */
+    /** 没有就插，返回 true 说明是新记录、要提醒 */
     public boolean insertIfAbsent(PickupItem it) {
         PickupItem exist = findByCode(it.code);
         if (exist != null) {
             it.id = exist.id;
-            // 同码记录在回收仓又收到新通知: 当作新包裹恢复为待取并提醒
+            // 同码之前在回收仓，现在又来通知，当新包裹捞回待取并提醒
             if (exist.status == PickupItem.STATUS_DELETED) {
                 update(it, PickupItem.STATUS_PENDING);
                 return true;
@@ -127,7 +126,6 @@ public class PickupDb extends SQLiteOpenHelper {
         return false;
     }
 
-    /** 按取件码查最近一条记录 */
     public PickupItem findByCode(String code) {
         Cursor c = getReadableDatabase().query(T, null, "code=?",
                 new String[]{code}, null, null, "received_at DESC", "1");
@@ -138,7 +136,7 @@ public class PickupDb extends SQLiteOpenHelper {
         }
     }
 
-    /** 合并重复通知: 补全缺失信息, 保留原状态(已取的不回退为待取) */
+    /** 重复通知就合并，缺的字段补上；原状态保留，已取的别退回待取 */
     private void merge(PickupItem exist, PickupItem it) {
         ContentValues v = new ContentValues();
         if (isEmpty(exist.carrier) && !isEmpty(it.carrier)) v.put("carrier", it.carrier);
@@ -151,7 +149,7 @@ public class PickupDb extends SQLiteOpenHelper {
         getWritableDatabase().update(T, v, "id=?", new String[]{String.valueOf(exist.id)});
     }
 
-    /** 覆盖整行(同码新包裹) */
+    /** 同码当新包裹，整行覆盖掉 */
     private void update(PickupItem it, int status) {
         ContentValues v = new ContentValues();
         v.put("carrier", it.carrier);
@@ -168,8 +166,8 @@ public class PickupDb extends SQLiteOpenHelper {
     }
 
     /**
-     * 到件待查(通知无取件码): 同包名+快递+驿站+自然日只提醒一次
-     * 返回 true 表示新记录(需要发高优提醒)
+     * 到件待查，通知里没码那种。同一个包名+快递+驿站+自然日只提醒一次
+     * 返回 true 就是新记录，得发高优提醒
      */
     public boolean insertArrival(PickupItem it) {
         long day = it.receivedAt / (24 * 60 * 60 * 1000L);
@@ -194,7 +192,7 @@ public class PickupDb extends SQLiteOpenHelper {
         return false;
     }
 
-    /** 抓到真实取件码后, 清掉同快递/同驿站近 3 天的"到件待查"记录 */
+    /** 真码抓到了，就把同快递/同驿站近 3 天的"到件待查"清掉 */
     public int removeMatchedArrivals(String carrier, String station) {
         long since = System.currentTimeMillis() - 3 * 24 * 60 * 60 * 1000L;
         String where = "status=" + PickupItem.STATUS_ARRIVAL + " AND received_at>=?";
@@ -221,7 +219,7 @@ public class PickupDb extends SQLiteOpenHelper {
         return s == null || s.isEmpty();
     }
 
-    /** 待取页: 含已识别待取(0)和到件待查(3) */
+    /** 待取页里既有识别出的待取(0)，也有到件待查(3) */
     public List<PickupItem> listPending() {
         List<PickupItem> out = new ArrayList<>();
         Cursor c = getReadableDatabase().query(T, null, "status IN (0,3)",
@@ -254,7 +252,7 @@ public class PickupDb extends SQLiteOpenHelper {
         notifyChanged();
     }
 
-    /** 移入回收仓(软删除), 满 1 天由 purgeExpired 彻底删除 */
+    /** 软删除，先丢进回收仓，满 1 天 purgeExpired 再彻底删 */
     public void softDelete(long id) {
         ContentValues v = new ContentValues();
         v.put("status", PickupItem.STATUS_DELETED);
@@ -263,7 +261,6 @@ public class PickupDb extends SQLiteOpenHelper {
         notifyChanged();
     }
 
-    /** 从回收仓恢复为已取 */
     public void restore(long id) {
         ContentValues v = new ContentValues();
         v.put("status", PickupItem.STATUS_DONE);
@@ -285,7 +282,6 @@ public class PickupDb extends SQLiteOpenHelper {
         return out;
     }
 
-    /** 彻底删除在回收仓超过 1 天的记录, 返回删除条数 */
     public int purgeExpired() {
         int n = getWritableDatabase().delete(T,
                 "status=? AND deleted_at>0 AND deleted_at<?",

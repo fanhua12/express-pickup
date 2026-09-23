@@ -8,9 +8,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 一键查询: 按通知来源包名拉起对应 App
- * 取件码内部页多为未导出的私有页面, 无法保证直达, 因此只负责拉起 App,
- * 用户进去后自行查看取件码
+ * 一键查询就是按通知来源的包名把对应 App 拉起来
+ * 取件码那个页面大多是没导出的私有页，没法直达，所以只能把 App 拉到前台，
+ * 进去之后用户自己找
  */
 public final class ExpressApps {
 
@@ -20,7 +20,7 @@ public final class ExpressApps {
     public static final String PKG_PDD = "com.xunmeng.pinduoduo";
     public static final String PKG_SF = "com.sf.activity";
 
-    /** 无来源包名(如短信)时, 按快递公司猜一个最可能查到的 App */
+    /** 短信这种没有来源包名的情况，就按快递公司猜个最可能查到的 App */
     private static final Map<String, String> CARRIER_PKG = new HashMap<>();
 
     static {
@@ -33,7 +33,7 @@ public final class ExpressApps {
 
     private ExpressApps() {}
 
-    /** 可启动: 必须是带启动入口的 App(系统包如 com.android.shell 已安装但无法启动) */
+    /** 得能真的启动才行。像 com.android.shell 装了但没启动入口，不算 */
     private static boolean launchable(Context ctx, String pkg) {
         if (pkg == null) return false;
         try {
@@ -49,12 +49,11 @@ public final class ExpressApps {
             String p = CARRIER_PKG.get(carrier);
             if (launchable(ctx, p)) return p;
         }
-        // 驿站/快递柜类通知大多能在菜鸟里查到
+        // 驿站、快递柜的通知，基本都能在菜鸟里查到
         if (launchable(ctx, PKG_CAINIAO)) return PKG_CAINIAO;
         return null;
     }
 
-    /** 拉起查询 App; 返回 false 表示没有可启动的对应 App */
     public static boolean launch(Context ctx, String sourcePkg, String carrier) {
         String pkg = resolvePkg(ctx, sourcePkg, carrier);
         if (pkg == null) return false;
