@@ -39,14 +39,14 @@ public class NotifyListener extends NotificationListenerService {
         append(pool, text);
         append(pool, bigText);
         append(pool, subText);
-        if (pool.length() > 0) Ingestor.handle(this, pool.toString(), "notification", app);
+        if (pool.length() > 0) Ingestor.handle(this, pool.toString(), "notification", app, pkg);
 
         // 折叠通知(InboxStyle): 正文按行存放在 EXTRA_TEXT_LINES, 每行单独解析, 避免多条取件码只抓到一条
         CharSequence[] lines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES);
         if (lines != null) {
             for (CharSequence line : lines) {
                 String s = str(line);
-                if (!TextUtils.isEmpty(s)) Ingestor.handle(this, s, "notification", app);
+                if (!TextUtils.isEmpty(s)) Ingestor.handle(this, s, "notification", app, pkg);
             }
         }
     }

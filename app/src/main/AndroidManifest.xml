@@ -35,6 +35,18 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- 相册/其他App分享截图进来识别取件码(单张) -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <!-- 一次分享多张截图 -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
         </activity>
 
         <!-- 取件码规则设置 -->
@@ -42,6 +54,14 @@
             android:name=".ui.RulesActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+
+        <!-- 一键查询跳板(无界面): 拉起来源快递 App -->
+        <activity
+            android:name=".service.QueryActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay" />
 
         <!-- 短信接收器 -->
         <receiver

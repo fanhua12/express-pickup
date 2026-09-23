@@ -16,7 +16,7 @@ import java.util.List;
 public class PickupDb extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "pickups.db";
-    private static final int DB_VERSION = 2;
+    private static final int DB_VERSION = 3;
     private static final String T = "pickups";
 
     /** 回收仓保留时长 */
@@ -65,6 +65,7 @@ public class PickupDb extends SQLiteOpenHelper {
                 "station TEXT," +
                 "source TEXT," +
                 "source_app TEXT," +
+                "source_pkg TEXT," +
                 "raw TEXT," +
                 "received_at INTEGER," +
                 "status INTEGER DEFAULT 0," +
@@ -78,6 +79,10 @@ public class PickupDb extends SQLiteOpenHelper {
         // v2: 新增回收仓, 保留老数据只加列
         if (oldV < 2) {
             db.execSQL("ALTER TABLE " + T + " ADD COLUMN deleted_at INTEGER DEFAULT 0");
+        }
+        // v3: 来源 App 包名(一键查询拉起)
+        if (oldV < 3) {
+            db.execSQL("ALTER TABLE " + T + " ADD COLUMN source_pkg TEXT");
         }
     }
 
@@ -108,6 +113,7 @@ public class PickupDb extends SQLiteOpenHelper {
         v.put("station", it.station);
         v.put("source", it.source);
         v.put("source_app", it.sourceApp);
+        v.put("source_pkg", it.sourcePkg);
         v.put("raw", it.raw);
         v.put("received_at", it.receivedAt);
         v.put("status", PickupItem.STATUS_PENDING);
@@ -152,15 +158,80 @@ public class PickupDb extends SQLiteOpenHelper {
         v.put("station", it.station);
         v.put("source", it.source);
         v.put("source_app", it.sourceApp);
+        v.put("source_pkg", it.sourcePkg);
         v.put("raw", it.raw);
         v.put("received_at", it.receivedAt);
         v.put("status", status);
+        v.put("deleted_at", 0);
         getWritableDatabase().update(T, v, "id=?", new String[]{String.valueOf(it.id)});
         notifyChanged();
     }
 
+    /**
+     * 到件待查(通知无取件码): 同包名+快递+驿站+自然日只提醒一次
+     * 返回 true 表示新记录(需要发高优提醒)
+     */
+    public boolean insertArrival(PickupItem it) {
+        long day = it.receivedAt / (24 * 60 * 60 * 1000L);
+        ContentValues v = new ContentValues();
+        v.put("code", "");
+        v.put("carrier", it.carrier);
+        v.put("station", it.station);
+        v.put("source", it.source);
+        v.put("source_app", it.sourceApp);
+        v.put("source_pkg", it.sourcePkg);
+        v.put("raw", it.raw);
+        v.put("received_at", it.receivedAt);
+        v.put("status", PickupItem.STATUS_ARRIVAL);
+        v.put("hash", md5("ARR|" + safe(it.sourcePkg) + "|" + safe(it.carrier)
+                + "|" + safe(it.station) + "|" + day));
+        long id = getWritableDatabase().insertWithOnConflict(T, null, v, SQLiteDatabase.CONFLICT_IGNORE);
+        if (id >= 0) {
+            it.id = id;
+            notifyChanged();
+            return true;
+        }
+        return false;
+    }
+
+    /** 抓到真实取件码后, 清掉同快递/同驿站近 3 天的"到件待查"记录 */
+    public int removeMatchedArrivals(String carrier, String station) {
+        long since = System.currentTimeMillis() - 3 * 24 * 60 * 60 * 1000L;
+        String where = "status=" + PickupItem.STATUS_ARRIVAL + " AND received_at>=?";
+        String[] args;
+        if (!isEmpty(station)) {
+            where += " AND station=?";
+            args = new String[]{String.valueOf(since), station};
+        } else if (!isEmpty(carrier)) {
+            where += " AND carrier=?";
+            args = new String[]{String.valueOf(since), carrier};
+        } else {
+            return 0;
+        }
+        int n = getWritableDatabase().delete(T, where, args);
+        if (n > 0) notifyChanged();
+        return n;
+    }
+
+    private static String safe(String s) {
+        return s == null ? "" : s;
+    }
+
     private static boolean isEmpty(String s) {
         return s == null || s.isEmpty();
+    }
+
+    /** 待取页: 含已识别待取(0)和到件待查(3) */
+    public List<PickupItem> listPending() {
+        List<PickupItem> out = new ArrayList<>();
+        Cursor c = getReadableDatabase().query(T, null, "status IN (0,3)",
+                null, null, null, "received_at DESC");
+        try {
+            while (c.moveToNext()) out.add(fromCursor(c));
+        } finally {
+            c.close();
+        }
+        return out;
     }
 
     public List<PickupItem> list(int status) {
@@ -226,7 +297,7 @@ public class PickupDb extends SQLiteOpenHelper {
 
     public int pendingCount() {
         Cursor c = getReadableDatabase().rawQuery(
-                "SELECT COUNT(*) FROM " + T + " WHERE status=0", null);
+                "SELECT COUNT(*) FROM " + T + " WHERE status IN (0,3)", null);
         try {
             return c.moveToFirst() ? c.getInt(0) : 0;
         } finally {
@@ -242,6 +313,7 @@ public class PickupDb extends SQLiteOpenHelper {
         it.station = c.getString(c.getColumnIndexOrThrow("station"));
         it.source = c.getString(c.getColumnIndexOrThrow("source"));
         it.sourceApp = c.getString(c.getColumnIndexOrThrow("source_app"));
+        it.sourcePkg = c.getString(c.getColumnIndexOrThrow("source_pkg"));
         it.raw = c.getString(c.getColumnIndexOrThrow("raw"));
         it.receivedAt = c.getLong(c.getColumnIndexOrThrow("received_at"));
         it.deletedAt = c.getLong(c.getColumnIndexOrThrow("deleted_at"));

@@ -24,8 +24,8 @@ public final class RuleStore {
     private static final String TAG = "RuleStore";
     private static final String FILE = "rules.json";
     private static final String ASSET = "rules.json";
-    /** 与 assets/rules.json 的 version 保持一致, 升版后新内置规则会自动追加到已有规则末尾 */
-    private static final int VERSION = 2;
+    /** 与 assets/rules.json 的 version 保持一致; 升版后内置规则的正则会刷新, 新增的追加到末尾 */
+    private static final int VERSION = 3;
 
     private static List<Rule> cache;
 
@@ -116,10 +116,12 @@ public final class RuleStore {
             return rules;
         }
 
-        // 内置规则集升版: 只把新增的内置规则追加到末尾, 用户已有的顺序与开关保持不变
+        // 内置规则集升版: 同名规则刷新正则(保留用户的开关与排序), 新增规则追加到末尾
         if (assetJson != null && versionOf(assetJson) > versionOf(fileJson)) {
             for (Rule b : parseQuietly(assetJson)) {
-                if (!containsName(rules, b.name)) rules.add(b);
+                Rule exist = findByName(rules, b.name);
+                if (exist == null) rules.add(b);
+                else exist.pattern = b.pattern;
             }
             write(ctx, toJson(rules));
         }
@@ -134,11 +136,11 @@ public final class RuleStore {
         }
     }
 
-    private static boolean containsName(List<Rule> rules, String name) {
+    private static Rule findByName(List<Rule> rules, String name) {
         for (Rule r : rules) {
-            if (name.equals(r.name)) return true;
+            if (name.equals(r.name)) return r;
         }
-        return false;
+        return null;
     }
 
     private static int versionOf(String json) {

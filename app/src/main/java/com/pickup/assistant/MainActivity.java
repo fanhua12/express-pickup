@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -15,6 +16,8 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
@@ -25,11 +28,15 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.button.MaterialButton;
 import com.pickup.assistant.db.PickupDb;
 import com.pickup.assistant.model.PickupItem;
+import com.pickup.assistant.ocr.OcrManager;
+import com.pickup.assistant.service.Ingestor;
 import com.pickup.assistant.service.KeepAliveService;
 import com.pickup.assistant.ui.PickupAdapter;
 import com.pickup.assistant.ui.RulesActivity;
+import com.pickup.assistant.util.ExpressApps;
 import com.pickup.assistant.util.Permissions;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -48,6 +55,13 @@ public class MainActivity extends AppCompatActivity {
     private int currentStatus = PickupItem.STATUS_PENDING;
     private boolean forceShowPerm = false;
     private boolean pendingAutostart = false;
+    private AlertDialog ocrProgress;
+
+    /** 选截图: 走系统相册/文件选择器, 不需要存储权限, 支持一次多选 */
+    private final ActivityResultLauncher<String> pickImage =
+            registerForActivityResult(new ActivityResultContracts.GetMultipleContents(), uris -> {
+                if (uris != null && !uris.isEmpty()) runOcr(uris);
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,6 +91,11 @@ public class MainActivity extends AppCompatActivity {
             public void onDelete(PickupItem it) {
                 MainActivity.this.onDelete(it);
             }
+
+            @Override
+            public void onQuery(PickupItem it) {
+                MainActivity.this.onQuery(it);
+            }
         });
         list.setAdapter(adapter);
 
@@ -93,6 +112,8 @@ public class MainActivity extends AppCompatActivity {
             forceShowPerm = !forceShowPerm;
             buildPermCard();
         });
+        findViewById(R.id.btn_ocr).setOnClickListener(v ->
+                pickImage.launch("image/*"));
 
         // 权限卡展开时按返回先收起, 不直接退出应用
         getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
@@ -111,6 +132,81 @@ public class MainActivity extends AppCompatActivity {
 
         startKeepAlive();
         requestRuntimePermissions();
+        handleSharedImage(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleSharedImage(intent);
+    }
+
+    /** 从相册/其他 App "分享到取件码助手"的截图, 支持单张和多张 */
+    private void handleSharedImage(Intent intent) {
+        if (intent == null) return;
+        String action = intent.getAction();
+        String type = intent.getType();
+        if (type == null || !type.startsWith("image/")) return;
+        if (Intent.ACTION_SEND.equals(action)) {
+            Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+            intent.setAction(null);
+            if (uri != null) runOcr(java.util.Collections.singletonList(uri));
+        } else if (Intent.ACTION_SEND_MULTIPLE.equals(action)) {
+            ArrayList<Uri> uris = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+            intent.setAction(null);
+            if (uris != null && !uris.isEmpty()) runOcr(uris);
+        }
+    }
+
+    private void runOcr(List<Uri> uris) {
+        if (ocrProgress == null) {
+            ocrProgress = new AlertDialog.Builder(this)
+                    .setCancelable(false)
+                    .create();
+        }
+        ocrProgress.setMessage(uris.size() > 1
+                ? "正在识别 " + uris.size() + " 张截图中的取件码…"
+                : "正在识别截图中的取件码…");
+        ocrProgress.show();
+        OcrManager.recognizeAll(this, uris, (text, error) -> runOnUiThread(() -> {
+            if (ocrProgress != null && ocrProgress.isShowing()) ocrProgress.dismiss();
+            if (error != null) {
+                Toast.makeText(this, error, Toast.LENGTH_LONG).show();
+                return;
+            }
+            applyOcrText(text == null ? "" : text);
+        }));
+    }
+
+    /** OCR 文本复用短信/通知同一套解析入库, 按结果给提示 */
+    private void applyOcrText(String text) {
+        Ingestor.BatchResult br = Ingestor.handleBatch(this, text, "screenshot", "截图识别");
+        String msg;
+        if (br.newCount > 0 && !br.newCodes.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("已识别到 ").append(br.newCount).append(" 个取件码：");
+            for (int i = 0; i < br.newCodes.size(); i++) {
+                if (i > 0) sb.append("、");
+                sb.append(br.newCodes.get(i));
+            }
+            if (br.dupCount > 0) sb.append("（另有 ").append(br.dupCount).append(" 个已在列表中）");
+            sb.append("，已加入待取");
+            msg = sb.toString();
+            switchTab(PickupItem.STATUS_PENDING);
+        } else if (br.newCount > 0) {
+            msg = "图里没有取件码，但识别到快递已到，已建「到件待查」，可点一键查询";
+            switchTab(PickupItem.STATUS_PENDING);
+        } else if (br.dupCount > 0) {
+            msg = "识别到的 " + br.dupCount + " 个取件码都已在列表中";
+        } else {
+            String ocr = text.trim();
+            msg = ocr.isEmpty()
+                    ? "图里没识别到文字，换张清晰的截图试试"
+                    : "没识别到取件码。OCR文本: " + (ocr.length() > 120 ? ocr.substring(0, 120) + "…" : ocr);
+        }
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+        refresh();
     }
 
     @Override
@@ -177,9 +273,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void refresh() {
-        List<PickupItem> items = currentStatus == PickupItem.STATUS_DELETED
-                ? PickupDb.get(this).listDeleted()
-                : PickupDb.get(this).list(currentStatus);
+        List<PickupItem> items;
+        if (currentStatus == PickupItem.STATUS_DELETED) {
+            items = PickupDb.get(this).listDeleted();
+        } else if (currentStatus == PickupItem.STATUS_PENDING) {
+            items = PickupDb.get(this).listPending();
+        } else {
+            items = PickupDb.get(this).list(currentStatus);
+        }
         adapter.submit(items);
         statCount.setText(String.valueOf(PickupDb.get(this).pendingCount()));
         emptyView.setVisibility(items.isEmpty() ? View.VISIBLE : View.GONE);
@@ -212,9 +313,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void onDelete(PickupItem it) {
+        boolean arrival = it.status == PickupItem.STATUS_ARRIVAL;
         View content = LayoutInflater.from(this).inflate(R.layout.dialog_delete, null);
         TextView code = content.findViewById(R.id.txt_code);
-        code.setText(it.code);
+        code.setText(arrival ? "到件待查" : it.code);
 
         AlertDialog d = new AlertDialog.Builder(this).setView(content).create();
         content.findViewById(R.id.btn_cancel).setOnClickListener(v -> d.dismiss());
@@ -231,6 +333,15 @@ public class MainActivity extends AppCompatActivity {
             android.view.WindowManager.LayoutParams lp = w.getAttributes();
             lp.width = getResources().getDisplayMetrics().widthPixels - dp(56);
             w.setAttributes(lp);
+        }
+    }
+
+    /** 一键查询: 拉起来源 App, 取件码在对方 App 内查看 */
+    private void onQuery(PickupItem it) {
+        boolean ok = ExpressApps.launch(this, it.sourcePkg, it.carrier);
+        if (!ok) {
+            Toast.makeText(this, "没找到对应的快递 App，请先安装或在通知原文里查看",
+                    Toast.LENGTH_LONG).show();
         }
     }
 
