@@ -33,7 +33,7 @@
         <package android:name="com.sf.activity" />
         <package android:name="com.zto.ztoexpress" />
         <package android:name="com.yto.express" />
-        <package android:name="com.yunda.exp" />
+        <package android:name="com.yunda.app" />
         <package android:name="com.sto.speed" />
         <package android:name="com.jtexpress.jtexpress" />
         <package android:name="com.cmcc.bpb" />
