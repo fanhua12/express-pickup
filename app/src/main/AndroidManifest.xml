@@ -18,6 +18,27 @@
 
     <!-- 明确不申请网络权限, 数据完全本地 -->
 
+    <!-- Android 11+ 包可见性: 声明后才能检测并拉起快递类 App(一键查询) -->
+    <queries>
+        <!-- 所有带桌面启动入口的 App: 覆盖任意通知来源包名 -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <!-- 常见快递/电商 App 包名兜底 -->
+        <package android:name="com.cainiao.wireless" />
+        <package android:name="com.taobao.taobao" />
+        <package android:name="com.jingdong.app.mall" />
+        <package android:name="com.xunmeng.pinduoduo" />
+        <package android:name="com.sf.activity" />
+        <package android:name="com.zto.ztoexpress" />
+        <package android:name="com.yto.express" />
+        <package android:name="com.yunda.exp" />
+        <package android:name="com.sto.speed" />
+        <package android:name="com.jtexpress.jtexpress" />
+        <package android:name="com.cmcc.bpb" />
+    </queries>
+
     <application
         android:name=".App"
         android:allowBackup="true"
