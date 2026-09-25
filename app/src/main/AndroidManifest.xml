@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- 短信: 接收并读取快递短信 -->
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
@@ -47,6 +48,15 @@
         android:roundIcon="@drawable/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.Pickup">
+
+        <!-- ML Kit 的传递依赖带了 Google 遥测(datatransport)，会注册周期任务定时唤醒进程，
+             本应用不联网，这些数据也用不上，直接把两个调度组件摘掉，省电 -->
+        <service
+            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.JobInfoSchedulerService"
+            tools:node="remove" />
+        <receiver
+            android:name="com.google.android.datatransport.runtime.scheduling.jobscheduling.AlarmManagerSchedulerBroadcastReceiver"
+            tools:node="remove" />
 
         <activity
             android:name=".MainActivity"

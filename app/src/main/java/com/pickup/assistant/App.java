@@ -3,6 +3,7 @@ package com.pickup.assistant;
 import android.app.Application;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.Context;
 import android.os.Build;
 
 public class App extends Application {
@@ -10,10 +11,22 @@ public class App extends Application {
     public static final String CH_NEW = "new_pickup";      // 新取件码(高优先级)
     public static final String CH_KEEP = "keep_alive";     // 常驻保活(低优先级)
 
+    private static final String PREF = "pickup_prefs";
+    private static final String KEY_POWER_SAVE = "power_save";
+
     @Override
     public void onCreate() {
         super.onCreate();
         createChannels();
+    }
+
+    /** 省电模式：不跑常驻前台服务，通知监听和短信由系统按需拉起。默认开 */
+    public static boolean powerSave(Context ctx) {
+        return ctx.getSharedPreferences(PREF, MODE_PRIVATE).getBoolean(KEY_POWER_SAVE, true);
+    }
+
+    public static void setPowerSave(Context ctx, boolean on) {
+        ctx.getSharedPreferences(PREF, MODE_PRIVATE).edit().putBoolean(KEY_POWER_SAVE, on).apply();
     }
 
     private void createChannels() {

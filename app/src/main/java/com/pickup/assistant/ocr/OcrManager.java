@@ -23,7 +23,6 @@ public final class OcrManager {
     }
 
     private static volatile TextRecognizer recognizer;
-    private static final ExecutorService IO = Executors.newSingleThreadExecutor();
 
     private OcrManager() {}
 
@@ -41,24 +40,30 @@ public final class OcrManager {
 
     /** 多张截图一张张来，哪张失败就跳过，最后把文字拼成一段 */
     public static void recognizeAll(final Context ctx, final java.util.List<Uri> uris, final Callback cb) {
-        IO.execute(() -> {
-            StringBuilder all = new StringBuilder();
-            String lastError = null;
-            for (Uri uri : uris) {
-                try {
-                    InputImage image = InputImage.fromFilePath(ctx, uri);
-                    Text vision = com.google.android.gms.tasks.Tasks.await(
-                            client().process(image), 60, java.util.concurrent.TimeUnit.SECONDS);
-                    all.append(join(vision)).append('\n');
-                } catch (Exception e) {
-                    lastError = e.getMessage() == null ? "识别失败" : e.getMessage();
+        // 识别是用户点一下才走一次的，线程用完就关，不常驻养着
+        final ExecutorService io = Executors.newSingleThreadExecutor();
+        io.execute(() -> {
+            try {
+                StringBuilder all = new StringBuilder();
+                String lastError = null;
+                for (Uri uri : uris) {
+                    try {
+                        InputImage image = InputImage.fromFilePath(ctx, uri);
+                        Text vision = com.google.android.gms.tasks.Tasks.await(
+                                client().process(image), 60, java.util.concurrent.TimeUnit.SECONDS);
+                        all.append(join(vision)).append('\n');
+                    } catch (Exception e) {
+                        lastError = e.getMessage() == null ? "识别失败" : e.getMessage();
+                    }
                 }
+                if (all.length() == 0 && lastError != null) {
+                    cb.onResult(null, lastError);
+                    return;
+                }
+                cb.onResult(all.toString(), null);
+            } finally {
+                io.shutdown();
             }
-            if (all.length() == 0 && lastError != null) {
-                cb.onResult(null, lastError);
-                return;
-            }
-            cb.onResult(all.toString(), null);
         });
     }
 

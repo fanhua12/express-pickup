@@ -348,6 +348,8 @@ public class MainActivity extends AppCompatActivity {
     // ==================== 保活服务 ====================
 
     private void startKeepAlive() {
+        // 省电模式不开常驻服务，靠系统按需把进程拉起来就够了
+        if (App.powerSave(this)) return;
         Intent svc = new Intent(this, KeepAliveService.class);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(svc);
@@ -385,9 +387,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void buildPermCard() {
         permContainer.removeAllViews();
-        addPermRow("① 短信权限", "读取快递到达短信里的取件码",
+        boolean powerSave = App.powerSave(this);
+        int idx = 0;
+
+        addPermRow(num(++idx) + " 短信权限", "读取快递到达短信里的取件码",
                 Permissions.hasSms(this), v -> requestRuntimePermissions());
-        addPermRow("② 通知权限", "有新取件码时在通知栏提醒",
+        addPermRow(num(++idx) + " 通知权限", "有新取件码时在通知栏提醒",
                 Permissions.hasNotify(this), v -> {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         ActivityCompat.requestPermissions(this,
@@ -396,29 +401,36 @@ public class MainActivity extends AppCompatActivity {
                         startActivity(Permissions.appDetail(this));
                     }
                 });
-        addPermRow("③ 通知使用权限", "抓取菜鸟、微信、快递App的通知(必开)",
+        addPermRow(num(++idx) + " 通知使用权限", "抓取菜鸟、微信、快递App的通知(必开)",
                 Permissions.hasListener(this), v -> {
                     try { startActivity(Permissions.listenerSettings()); }
                     catch (Exception e) { toast("请手动到 设置-通知使用权 开启"); }
                 });
-        addPermRow("④ 电池优化白名单", "允许后台运行，防止被系统杀掉",
-                Permissions.isIgnoringBattery(this), v -> {
-                    try { startActivity(Permissions.batteryWhitelist(this)); }
-                    catch (Exception e) { startActivity(Permissions.appDetail(this)); }
-                });
+        if (!powerSave) {
+            // 省电模式下不常驻后台，用不着白名单，这行就不显示了
+            addPermRow(num(++idx) + " 电池优化白名单", "允许后台运行，防止被系统杀掉",
+                    Permissions.isIgnoringBattery(this), v -> {
+                        try { startActivity(Permissions.batteryWhitelist(this)); }
+                        catch (Exception e) { startActivity(Permissions.appDetail(this)); }
+                    });
+        }
         // 自启动各家 ROM 都不一样，没有标准 API，跳过去让用户回来确认一次，状态记本地
-        addPermRow("⑤ 自启动管理", "在厂商设置里允许本应用自启动、后台运行",
+        addPermRow(num(++idx) + " 自启动管理", "在厂商设置里允许本应用自启动、后台运行",
                 autostartConfirmed(), v -> {
                     pendingAutostart = true;
                     try { startActivity(Permissions.autoStart(this)); }
                     catch (Exception e) { startActivity(Permissions.appDetail(this)); }
                 });
+        addPermRow(num(++idx) + " 省电模式", powerSave
+                        ? "不常驻后台，系统按需唤起，最省电（当前已开启）"
+                        : "常驻后台保活，最不容易漏消息（当前已关闭）",
+                powerSave, v -> togglePowerSave());
 
         boolean allCoreGranted = Permissions.hasSms(this)
                 && Permissions.hasNotify(this)
                 && Permissions.hasListener(this)
-                && Permissions.isIgnoringBattery(this)
-                && autostartConfirmed();
+                && autostartConfirmed()
+                && (powerSave || Permissions.isIgnoringBattery(this));
 
         // 全开时卡片不藏，只换成绿色完成态并收起列表；点设置还能再展开管理
         boolean done = allCoreGranted && !forceShowPerm;
@@ -432,6 +444,24 @@ public class MainActivity extends AppCompatActivity {
             permContainer.setVisibility(View.VISIBLE);
         }
         permCard.setVisibility(View.VISIBLE);
+    }
+
+    private void togglePowerSave() {
+        boolean next = !App.powerSave(this);
+        App.setPowerSave(this, next);
+        if (next) {
+            stopService(new Intent(this, KeepAliveService.class));
+            toast("省电模式已开启，不再常驻后台");
+        } else {
+            startKeepAlive();
+            toast("省电模式已关闭，改回常驻保活");
+        }
+        buildPermCard();
+    }
+
+    private static String num(int i) {
+        String[] circles = {"", "①", "②", "③", "④", "⑤", "⑥", "⑦"};
+        return i < circles.length ? circles[i] : String.valueOf(i);
     }
 
     private void addPermRow(CharSequence title, String desc, boolean granted, View.OnClickListener onClick) {
